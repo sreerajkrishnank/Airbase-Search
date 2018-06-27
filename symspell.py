@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import re
-from Queue import Queue
+from queue import Queue
 from threading import Thread
 import time
 
@@ -34,8 +34,6 @@ def get_deletes_list(w):
 def create_dictionary_entry(w,count=1):
     global longest_word_length
     new_real_word_added = False
-    if w == 'goo':
-        print dictionary[w]
     if w in dictionary:
         # increment count of word in corpus
         dictionary[w] = (dictionary[w][0], dictionary[w][1] + 1)  
@@ -62,7 +60,7 @@ def create_dictionary(fname):
     unique_word_count = 0
     
     with open(fname) as file:
-        print "Creating dictionary..."     
+        print ("Creating dictionary...")
         for line in file:
             # separate by words by non-alphabetical characters      
             line = line.split('\n')[0]
@@ -73,21 +71,21 @@ def create_dictionary(fname):
                 if create_dictionary_entry(word,int(count)):
                     unique_word_count += 1
     
-    print "total words processed: %i" % total_word_count
-    print "total unique words in corpus: %i" % unique_word_count
+    print(("total words processed: %i" % total_word_count))
+    print(("total unique words in corpus: %i" % unique_word_count))
     return dictionary
 
 def damerau_levenshtein_distance(s2, s1):
     d = {}
     lenstr1 = len(s1)
     lenstr2 = len(s2)
-    for i in xrange(-1,lenstr1+1):
+    for i in range(-1,lenstr1+1):
         d[(i,-1)] = i+1
-    for j in xrange(-1,lenstr2+1):
+    for j in range(-1,lenstr2+1):
         d[(-1,j)] = j+1
  
-    for i in xrange(lenstr1):
-        for j in xrange(lenstr2):
+    for i in range(lenstr1):
+        for j in range(lenstr2):
             if s1[i] == s2[j]:
                 cost = 0
             else:
@@ -105,6 +103,7 @@ def damerau_levenshtein_distance(s2, s1):
 def process_queue(q):
   while True:
         q_item = q.get()  # pop
+        print (q_item)
         global suggest_dict, string, min_suggest_len
 
         if ((verbose<2) and (len(suggest_dict)>0) and 
@@ -139,7 +138,7 @@ def process_queue(q):
                         if item_dist < min_suggest_len:
                             min_suggest_len = item_dist
                     if verbose<2:
-                        suggest_dict = {k:v for k, v in suggest_dict.items() if v[1]<=min_suggest_len}
+                        suggest_dict = {k:v for k, v in list(suggest_dict.items()) if v[1]<=min_suggest_len}
        
         assert len(string)>=len(q_item)
         if ((verbose<2) and ((len(string)-len(q_item))>min_suggest_len)):
@@ -153,6 +152,9 @@ def process_queue(q):
         q.task_done()
 
 def get_suggestions(searchStr, silent=False):
+    if not bool(dictionary):
+        init()
+    start_time = time.time()
     global suggest_dict,string,q_dictionary
     suggest_dict = {}
     string=searchStr
@@ -166,18 +168,23 @@ def get_suggestions(searchStr, silent=False):
 
     if (len(string) - longest_word_length) > max_edit_distance:
         if not silent:
-            print "no items in dictionary within maximum edit distance"
+            print ("no items in dictionary within maximum edit distance")
         return []
 
     if not silent and verbose!=0:
-        print "number of possible corrections: %i" %len(suggest_dict)
-        print "  edit distance for deletions: %i" % max_edit_distance
+        print(("number of possible corrections: %i" %len(suggest_dict)))
+        print(("  edit distance for deletions: %i" % max_edit_distance))
     
-    as_list = suggest_dict.items()
+    as_list = list(suggest_dict.items())
 
-    outlist = sorted(as_list, key=lambda(term, (freq, dist)): (dist, -freq))
-    outlist = map(lambda(term, (freq, dist)): term, outlist)
-    print outlist
+    outlist = sorted(as_list, key=lambda term_freq_dist: (term_freq_dist[1][1], -term_freq_dist[1][0]))
+    outlist = [term_freq_dist1[0] for term_freq_dist1 in outlist]
+    
+    run_time = time.time() - start_time
+    print ('-----')
+    print(('%.2f seconds to run' % run_time))
+    print ('-----')
+    
     if verbose==0:
         return outlist[0]
     else:
@@ -196,7 +203,7 @@ def correct_document(fname, printlist=True):
         doc_word_count = 0
         corrected_word_count = 0
         unknown_word_count = 0
-        print "Finding misspelled words in your document..." 
+        print ("Finding misspelled words in your document...")
         
         for i, line in enumerate(file):
             # separate by words by non-alphabetical characters      
@@ -206,28 +213,23 @@ def correct_document(fname, printlist=True):
                 suggestion = best_word(doc_word, silent=True)
                 if suggestion is None:
                     if printlist:
-                        print "In line %i, the word < %s > was not found (no suggested correction)" % (i, doc_word)
+                        print(("In line %i, the word < %s > was not found (no suggested correction)" % (i, doc_word)))
                     unknown_word_count += 1
                 elif suggestion[0]!=doc_word:
                     if printlist:
-                        print "In line %i, %s: suggested correction is < %s >" % (i, doc_word, suggestion[0])
+                        print(("In line %i, %s: suggested correction is < %s >" % (i, doc_word, suggestion[0])))
                     corrected_word_count += 1
 
     return
 
 ## main
 def init():
-    print "Please wait..."
-    start_time = time.time()
+    print ("Please wait...")
     try:
-        create_dictionary("trial.tsv")
+        create_dictionary("word_search.tsv")
     except:
         create_dictionary("testdata/big.txt")
-    run_time = time.time() - start_time
-    print '-----'
-    print '%.2f seconds to run' % run_time
-    print '-----'
-
-    print " "
-    print "Word correction"
-    print "---------------"
+    
+    print (" ")
+    print ("Word correction")
+    print ("---------------")
